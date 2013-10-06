@@ -1,8 +1,7 @@
 // Constants.
-var width = 700;
-var height = 700;
+var size = 700;
 var startingNumEnemies = 6;
-var enemyRadius = 8;
+var radius = 8;
 var startingMoveInt = 3000;
 var boundaryFactor = Math.sqrt(2);
 var flashSpeed = 100;
@@ -20,7 +19,7 @@ var newRecord = false;
 var genEnemyLocations = function (){
   var enemyArr = [];
   for(var i = 0; i < currentNumEnemies; i++) {
-    enemyArr.push({x:Math.random()*(width-2*enemyRadius)+enemyRadius, y:Math.random()*(height-2*enemyRadius)+enemyRadius});
+    enemyArr.push({x:Math.random()*(size-2*radius)+radius, y:Math.random()*(size-2*radius)+radius});
   }
   return enemyArr;
 };
@@ -35,7 +34,7 @@ var updateEnemies = function () {
   enemies
     .enter().append('circle')
     .attr('class', 'enemy')
-    .attr('r', enemyRadius)
+    .attr('r', radius)
     .attr('cy', function (d, i) { return startData[i].y;})
     .attr('cx', function (d, i) { return startData[i].x;})
     .style('fill', 'red');
@@ -54,27 +53,35 @@ var collisionTween = function(endPoint) {
 
   return function (t) {
     checkCollision(enemy);
-    enemy.attr('cx', startX + (endPoint.x - startX)*t);
-    enemy.attr('cy', startY + (endPoint.y - startY)*t);
+    enemy.attr({cx: startX + (endPoint.x - startX)*t,
+                cy: startY + (endPoint.y - startY)*t});
   };
 };
 
+var checkDistance = function(d, x1, y1, x2, y2) {
+  return ((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) < d*d);
+};
+
 var checkCollision = function(enemy) {
-  var playerX = player.datum().x + enemyRadius;
-  var playerY = player.datum().y + enemyRadius;
+  var playerX = player.datum().x + radius;
+  var playerY = player.datum().y + radius;
 
   var enemyX = parseFloat(enemy.attr("cx"));
   var enemyY = parseFloat(enemy.attr("cy"));
-  if(Math.pow(enemyX - playerX,2) + Math.pow(enemyY - playerY, 2) < 4*enemyRadius*enemyRadius) {
-    playerHitFlash();
-    score = 0;
-    level = 1;
-    newRecord = false;
-    currentMoveInt = startingMoveInt;
-    currentNumEnemies = startingNumEnemies;
-    d3.select('.level').text(level);
-    d3Canvas.selectAll('circle.enemy').data([]).exit().remove();
+  if(checkDistance(2*radius, enemyX, enemyY, playerX, playerY)) {
+    restartRound();
   }
+};
+
+var restartRound = function () {
+  playerHitFlash();
+  score = 0;
+  level = 1;
+  newRecord = false;
+  currentMoveInt = startingMoveInt;
+  currentNumEnemies = startingNumEnemies;
+  d3.select('.level').text(level);
+  d3Canvas.selectAll('circle.enemy').data([]).exit().remove();
 };
 
 var playerHitFlash = function() {
@@ -93,6 +100,9 @@ var flashText = function(text) {
 
 var incrementScore = function() {
   score++;
+  if (bonusCircle.attr("r") && checkDistance(bonusCircle.attr("r"), bonusCircle.attr("cx"), bonusCircle.attr("cy"), player.attr("x"), player.attr("y"))) {
+    score += Math.round((12+level)*bonusCircle.attr("opacity"));
+  }
   d3.select('.score').text(score);
   if (score > highScore) {
     highScore = score;
@@ -119,15 +129,25 @@ var incrementScore = function() {
   setTimeout(incrementScore, Math.sqrt(currentMoveInt)*scoreMultiplier/(currentNumEnemies));
 };
 
+var activateBonus = function () {
+  bonusCircle.attr({r: Math.random()*100 + 50,
+                    cx: size/2 + (Math.random()*size/3) - size/6,
+                    cy: size/2 + (Math.random()*size/3) - size/6,
+                    opacity: 0.6});
+
+  bonusCircle.transition().duration(2000).ease('linear')
+    .attr({r: 0, opacity: 0});
+};
+
 // Initialize game.
 var d3Canvas = d3.select('svg')
-  .attr('width', width)
-  .attr('height', height);
+  .attr('width', size)
+  .attr('height', size);
 
 var msgText = d3.select('text')
                    .attr({
-                     x: width/2,
-                     y: height/2,
+                     x: size/2,
+                     y: size/2,
                      'text-anchor': 'middle',
                      'font-family': 'courier',
                      fill: '#0C0',
@@ -135,40 +155,42 @@ var msgText = d3.select('text')
                     });
 
 var boundary = d3Canvas.append('circle')
-  .attr('r', enemyRadius + height/(2*boundaryFactor))
-  .attr('cx', width/2)
-  .attr('cy', height/2)
-  .attr('class', 'boundary')
-  .attr('fill', 'none')
-  .style('stroke', '#0C0')
-  .style('stroke-width', 7);
+  .attr({r: radius + size/(2*boundaryFactor),
+         cx: size/2,
+         cy: size/2,
+         fill: "none",
+         stroke: "#0C0",
+         "stroke-width": 7});
 
-var player = d3Canvas.selectAll('rect').data([{x:width/2, y:height/2}])
+var bonusCircle = d3Canvas.append('circle').attr("fill", "white");
+
+var player = d3Canvas.selectAll('rect').data([{x:size/2, y:size/2}])
   .enter()
   .append('rect')
-  .attr('x', function (p) { return p.x;})
-  .attr('y', function (p) { return p.y;})
-  .attr('rx', 3)
-  .attr('ry', 3)
-  .attr('width', enemyRadius*2)
-  .attr('height', enemyRadius*2)
-  .style('fill', '#0C0');
+  .attr({x: function (p) { return p.x;},
+         y: function (p) { return p.y;},
+         rx: 5,
+         ry: 5,
+         fill: "#0C0",
+         width: radius*2,
+         height: radius*2});
 
 d3Canvas.on('mousemove', function(clickEvent) {
   var coordinates = d3.mouse(this);
-  var mX = coordinates[0] - width/2 + enemyRadius;
-  var mY = coordinates[1] - height/2 + enemyRadius;
-  if(mX * mX + mY * mY < height*height/(4*boundaryFactor*boundaryFactor)) {
+  var mX = coordinates[0] - size/2 + radius;
+  var mY = coordinates[1] - size/2 + radius;
+  if(mX * mX + mY * mY < size*size/(4*boundaryFactor*boundaryFactor)) {
     player.data([{x:coordinates[0], y:coordinates[1]}])
           .attr('x', function (d) { return d.x;})
           .attr('y', function (d) { return d.y;});
   }
 });
 
-// Make everything move!
+// Make everything go!
 
 updateEnemies();
 incrementScore();
+setInterval(function() { if (Math.random() < 0.7) activateBonus(); },1500);
 
 
 
