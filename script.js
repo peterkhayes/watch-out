@@ -1,14 +1,15 @@
 // Constants.
-var size = 700;
-var startingNumEnemies = 6;
-var radius = 8;
-var startingMoveInt = 3000;
+var size = 620;
 var boundaryFactor = Math.sqrt(2);
+var radius = 7;
+var startingNumEnemies = 6;
+var startingMoveInt = 3000;
 var flashSpeed = 100;
 var scoreMultiplier = 9;
 
 // Global variables.
 var score = 0;
+var nonBonusScore = 0;
 var highScore = 0;
 var currentNumEnemies = startingNumEnemies;
 var currentMoveInt = startingMoveInt;
@@ -76,6 +77,7 @@ var checkCollision = function(enemy) {
 var restartRound = function () {
   playerHitFlash();
   score = 0;
+  nonBonusScore = 0;
   level = 1;
   newRecord = false;
   currentMoveInt = startingMoveInt;
@@ -100,8 +102,14 @@ var flashText = function(text) {
 
 var incrementScore = function() {
   score++;
+  nonBonusScore++;
   if (bonusCircle.attr("r") && checkDistance(bonusCircle.attr("r"), bonusCircle.attr("cx"), bonusCircle.attr("cy"), player.attr("x"), player.attr("y"))) {
-    score += Math.round((12+level)*bonusCircle.attr("opacity"));
+    for (var i = 0, bonus = Math.round((12+level)*bonusCircle.attr("opacity")); i < bonus; i++) {
+      if (score % 100 === 0) {
+        flashText(score + " POINTS!");
+      }
+      score++;
+    }
   }
   d3.select('.score').text(score);
   if (score > highScore) {
@@ -115,7 +123,7 @@ var incrementScore = function() {
     d3.select('.highScore').text(highScore);
   }
 
-  if(score > 25*Math.pow(level, 1.7)) {
+  if(nonBonusScore > 25*Math.pow(level, 1.7)) {
     currentMoveInt *= 0.95;
     currentNumEnemies = startingNumEnemies + 2*(level-1);
     level++;
@@ -190,7 +198,7 @@ d3Canvas.on('mousemove', function(clickEvent) {
 
 updateEnemies();
 incrementScore();
-setInterval(function() { if (Math.random() < 0.7) activateBonus(); },1500);
+setInterval(function() { if (Math.random() < 0.6) activateBonus(); },2500);
 
 
 
